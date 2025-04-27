@@ -1,0 +1,14 @@
+[Unit]
+Description=Prometheus PostgreSQL Exporter
+After=network.target postgresql.service
+
+[Service]
+User=postgres
+Group=postgres
+Type=simple
+Environment=DATA_SOURCE_NAME="user=postgres host=/var/run/postgresql/ sslmode=disable"
+ExecStart=/usr/local/bin/postgres_exporter --config.file=/etc/postgres_exporter/postgres_exporter.yaml
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

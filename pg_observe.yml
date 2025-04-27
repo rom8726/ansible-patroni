@@ -1,0 +1,107 @@
+####################################
+##       SETUP OBSERVABILITY      ##
+####################################
+---
+- hosts: promoters
+  become: true
+  vars:
+    node_exporter_version: "1.7.0"
+    postgres_exporter_version: "0.14.0"
+    arch: "linux-arm64"
+
+  tasks:
+    - name: Create node_exporter system user
+      user:
+        name: node_exporter
+        system: yes
+        shell: /sbin/nologin
+        create_home: no
+
+    - name: Download and install node_exporter
+      block:
+        - name: Download node_exporter
+          get_url:
+            url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/node_exporter-{{ node_exporter_version }}.{{ arch }}.tar.gz"
+            dest: /tmp/node_exporter.tar.gz
+            mode: '0644'
+
+        - name: Extract node_exporter
+          unarchive:
+            src: /tmp/node_exporter.tar.gz
+            dest: /tmp
+            remote_src: yes
+
+        - name: Copy node_exporter binary
+          copy:
+            src: "/tmp/node_exporter-{{ node_exporter_version }}.{{ arch }}/node_exporter"
+            dest: "/usr/local/bin/node_exporter"
+            mode: '0755'
+            remote_src: yes
+
+    - name: Download and install postgres_exporter
+      block:
+        - name: Download postgres_exporter
+          get_url:
+            url: "https://github.com/prometheus-community/postgres_exporter/releases/download/v{{ postgres_exporter_version }}/postgres_exporter-{{ postgres_exporter_version }}.{{ arch }}.tar.gz"
+            dest: /tmp/postgres_exporter.tar.gz
+            mode: '0644'
+
+        - name: Extract postgres_exporter
+          unarchive:
+            src: /tmp/postgres_exporter.tar.gz
+            dest: /tmp
+            remote_src: yes
+
+        - name: Copy postgres_exporter binary
+          copy:
+            src: "/tmp/postgres_exporter-{{ postgres_exporter_version }}.{{ arch }}/postgres_exporter"
+            dest: "/usr/local/bin/postgres_exporter"
+            mode: '0755'
+            remote_src: yes
+
+    - name: Create systemd unit for node_exporter
+      template:
+        src: templates/node_exporter.service.j2
+        dest: /etc/systemd/system/node_exporter.service
+        mode: '0644'
+
+    - name: Ensure postgres_exporter config directory exists
+      file:
+        path: /etc/postgres_exporter
+        state: directory
+        mode: '0755'
+        owner: postgres
+        group: postgres
+
+    - name: Create postgres_exporter config
+      template:
+        src: templates/postgres_exporter.yaml.j2
+        dest: /etc/postgres_exporter/postgres_exporter.yaml
+        mode: '0640'
+        owner: postgres
+        group: postgres
+
+    - name: Create systemd unit for postgres_exporter
+      template:
+        src: templates/postgres_exporter.service.j2
+        dest: /etc/systemd/system/postgres_exporter.service
+        mode: '0644'
+
+    - name: Start and enable exporters
+      systemd:
+        name: "{{ item }}"
+        state: started
+        enabled: yes
+        daemon_reload: yes
+      with_items:
+        - node_exporter
+        - postgres_exporter
+
+    - name: Allow Prometheus metrics ports in firewall
+      ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+      with_items:
+        - '9100'  # node_exporter
+        - '9187'  # postgres_exporter
