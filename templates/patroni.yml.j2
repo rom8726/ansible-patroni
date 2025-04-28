@@ -56,10 +56,10 @@ postgresql:
     max-rate: 100M
     checkpoint: fast
   pg_hba:
-    - "local all all  trust"
-    - "host all {{ postgresql_superuser_name }} 127.0.0.1/32 trust"
-    - "host all {{ postgresql_superuser_name }} 0.0.0.0/32 trust"
-    #- "host all {{ postgresql_superuser_name }} {{ ansible_host }}/32 trust"
+    - local all all  trust
+    - host all {{ postgresql_superuser_name }} 127.0.0.1/32 trust
+    - host all {{ postgresql_superuser_name }} 0.0.0.0/32 trust
+    - host all {{ postgresql_superuser_name }} {{ ansible_host }}/32 trust
     - host replication {{ postgresql_replication_user }} {{ postgresql_replication_network }} {{ postgresql_replication_auth_method }}
 {% if postgresql_additional_pg_hba is defined %}
 {% for rule in postgresql_additional_pg_hba %}

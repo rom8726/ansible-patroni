@@ -39,5 +39,4 @@ postgresql_custom_parameters:
   wal_keep_segments: 32
 
 # Additional pg_hba.conf rules (optional)
-postgresql_additional_pg_hba:
-  #- "host postgres postgres 10.10.10.10/32 md5"
+#postgresql_additional_pg_hba:

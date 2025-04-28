@@ -6,7 +6,7 @@ After=network.target postgresql.service
 User=postgres
 Group=postgres
 Type=simple
-Environment=DATA_SOURCE_NAME="user=postgres host=/var/run/postgresql/ sslmode=disable"
+Environment=DATA_SOURCE_NAME="user=postgres host=localhost sslmode=disable"
 ExecStart=/usr/local/bin/postgres_exporter --config.file=/etc/postgres_exporter/postgres_exporter.yaml
 Restart=always
 
