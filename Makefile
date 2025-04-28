@@ -13,3 +13,7 @@ haproxy:
 .PHONY: pg-observe
 pg-observe:
 	ansible-playbook -i inventory.ini pg_observe.yml
+
+.PHONY: prometheus-grafana
+prometheus-grafana:
+	ansible-playbook -i inventory.ini prometheus_grafana.yml

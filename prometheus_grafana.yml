@@ -7,6 +7,7 @@
     prometheus_retention: "30d"
     prometheus_storage_path: "/var/lib/prometheus"
     prometheus_config_path: "/etc/prometheus"
+    prometheus_arch: "{{ 'arm64' if ansible_architecture == 'aarch64' else 'amd64' }}"
     grafana_admin_password: "admin"
 
   tasks:
@@ -31,7 +32,7 @@
       block:
         - name: Download Prometheus
           get_url:
-            url: "https://github.com/prometheus/prometheus/releases/download/v{{ prometheus_version }}/prometheus-{{ prometheus_version }}.linux-amd64.tar.gz"
+            url: "https://github.com/prometheus/prometheus/releases/download/v{{ prometheus_version }}/prometheus-{{ prometheus_version }}.linux-{{ prometheus_arch }}.tar.gz"
             dest: /tmp/prometheus.tar.gz
             mode: '0644'
 
@@ -43,13 +44,29 @@
 
         - name: Copy Prometheus binaries
           copy:
-            src: "/tmp/prometheus-{{ prometheus_version }}.linux-amd64/{{ item }}"
+            src: "/tmp/prometheus-{{ prometheus_version }}.linux-{{ prometheus_arch }}/{{ item }}"
             dest: "/usr/local/bin/"
             mode: '0755'
             remote_src: yes
           with_items:
             - prometheus
             - promtool
+
+    - name: Verify prometheus binary after installation
+      command: /usr/local/bin/prometheus --version
+      register: prometheus_version_check
+      changed_when: false
+      ignore_errors: true
+
+    - name: Display prometheus version
+      debug:
+        var: prometheus_version_check.stdout_lines
+      when: prometheus_version_check.rc == 0
+
+    - name: Fail if prometheus binary check failed
+      fail:
+        msg: "Prometheus binary verification failed"
+      when: prometheus_version_check.rc != 0
 
     - name: Create Prometheus config
       template:
