@@ -2,8 +2,8 @@
 - hosts: prometheus_grafana
   become: true
   vars:
-    prometheus_version: "2.49.1"
-    grafana_version: "10.2.3"
+    prometheus_version: "3.3.0"
+    grafana_version: "11.6.1"
     prometheus_retention: "30d"
     prometheus_storage_path: "/var/lib/prometheus"
     prometheus_config_path: "/etc/prometheus"
