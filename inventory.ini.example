@@ -3,8 +3,5 @@ patroni1 ansible_host=192.168.64.2 node_id=1
 patroni2 ansible_host=192.168.64.3 node_id=2
 patroni3 ansible_host=192.168.64.4 node_id=3
 
-[keepalived_hosts]
-vip_host ansible_host=192.168.64.5
-
 [prometheus_grafana]
 prometheus_grafana1 ansible_host=192.168.64.7
