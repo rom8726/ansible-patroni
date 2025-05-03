@@ -19,7 +19,7 @@ vrrp_script haproxy_check {
 
 vrrp_instance pgcluster_1 {
     interface {{ vip_interface }}
-    state BACKUP
+    state {% if hostvars[inventory_hostname].node_id == "1" %}MASTER{% else %}BACKUP{% endif %}
     priority {{ ansible_default_ipv4.address.split('.').3 }}
     virtual_router_id 10
     authentication {
@@ -27,7 +27,7 @@ vrrp_instance pgcluster_1 {
         auth_pass password
     }
     virtual_ipaddress {
-        {{ cluster_vip_1  }}
+        {{ cluster_vip_1 }}
     }
     unicast_src_ip {{ ansible_host }}
     unicast_peer {
