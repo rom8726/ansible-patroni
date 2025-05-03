@@ -16,11 +16,14 @@ patroni_retry_timeout: 10
 patroni_max_lag: 1048576
 patroni_use_pg_rewind: true
 patroni_use_slots: true
+patroni_config: "/etc/patroni.yml"
 
 # etcd settings
 etcd_client_port: 2379
 
 # PostgreSQL settigns
+pg_version: 16
+data_dir: "/var/lib/postgresql/{{ pg_version }}/main"
 postgresql_version: 16
 postgresql_encoding: UTF8
 postgresql_port: 5432
@@ -48,6 +51,16 @@ postgresql_custom_parameters:
 
 # Additional pg_hba.conf rules (optional)
 #postgresql_additional_pg_hba:
+
+# PgBouncer params
+pgbouncer_listen_port: 6432
+
+# HAProxy params
+haproxy_config: "/etc/haproxy/haproxy.cfg"
+
+# Cluster variables
+cluster_vip_1: "192.168.64.100"
+vip_interface: "{{ ansible_default_ipv4.interface }}"  # interface name (ex. "ens32")
 
 # Prometheus settings
 prometheus_retention: "30d"

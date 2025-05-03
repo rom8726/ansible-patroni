@@ -41,7 +41,7 @@ backend patroni_master_backend
     http-check expect status 200
     default-server inter 3s fall 3 rise 2
 {% for host in groups['promoters'] %}
-    server {{ host }} {{ hostvars[host]['ansible_host'] }}:{{ postgres_port }} check port {{ patroni_port }}
+    server {{ host }} {{ hostvars[host]['ansible_host'] }}:{{ pgbouncer_listen_port }} check port {{ patroni_api_port }}
 {% endfor %}
 
 backend patroni_replicas_backend
@@ -51,5 +51,5 @@ backend patroni_replicas_backend
     http-check expect status 200
     default-server inter 3s fall 3 rise 2
 {% for host in groups['promoters'] %}
-    server {{ host }} {{ hostvars[host]['ansible_host'] }}:{{ postgres_port }} check port {{ patroni_port }}
+    server {{ host }} {{ hostvars[host]['ansible_host'] }}:{{ pgbouncer_listen_port }} check port {{ patroni_api_port }}
 {% endfor %}

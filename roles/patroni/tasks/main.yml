@@ -1,0 +1,91 @@
+- name: Install dependencies
+  ansible.builtin.apt:
+    name:
+      - python3-pip
+      - python3-psycopg2
+      - wget
+      - gnupg
+    update_cache: true
+
+- name: Adding GPG-key PostgreSQL
+  ansible.builtin.get_url:
+    url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+    dest: /etc/apt/trusted.gpg.d/postgresql.asc
+    mode: '0644'
+
+- name: Adding apt repository PostgreSQL
+  ansible.builtin.apt_repository:
+    repo: "deb http://apt.postgresql.org/pub/repos/apt {{ ansible_lsb.codename }}-pgdg main"
+    state: present
+    filename: "pgdg"
+
+- name: Update apt
+  ansible.builtin.apt:
+    update_cache: true
+
+- name: Install PostgreSQL {{ pg_version }}
+  ansible.builtin.apt:
+    name: postgresql-{{ pg_version }}
+    state: present
+
+- name: Install patroni
+  ansible.builtin.pip:
+    name: patroni[etcd]
+
+- name: Stop PostgreSQL
+  ansible.builtin.service:
+    name: postgresql
+    state: stopped
+    enabled: false
+
+- name: Create config Patroni
+  ansible.builtin.template:
+    src: patroni.yml.j2
+    dest: /etc/patroni.yml
+    mode: '0644'
+
+- name: Set owner of data directory PostgreSQL
+  ansible.builtin.file:
+    path: "{{ data_dir }}"
+    state: directory
+    owner: postgres
+    group: postgres
+    mode: '0700'
+    recurse: true
+
+- name: Create patroni logs directory
+  ansible.builtin.file:
+    path: /var/log/patroni
+    state: directory
+    mode: '0755'
+
+- name: Create systemd unit for Patroni
+  ansible.builtin.template:
+    src: patroni.service.j2
+    dest: /etc/systemd/system/patroni.service
+    mode: '0644'
+
+- name: Create config for patroni logrotate
+  ansible.builtin.copy:
+    dest: /etc/logrotate.d/patroni
+    mode: '0644'
+    content: |
+      /var/log/patroni/patroni.log {
+          daily
+          rotate 7
+          compress
+          delaycompress
+          missingok
+          notifempty
+          create 0640 postgres postgres
+      }
+
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Enable and start Patroni systemd unit
+  ansible.builtin.systemd:
+    name: patroni
+    state: restarted
+    enabled: true

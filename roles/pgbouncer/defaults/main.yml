@@ -1,0 +1,9 @@
+pgbouncer_listen_port: 6432
+pgbouncer_listen_addr: 0.0.0.0
+pgbouncer_auth_user: postgres
+pgbouncer_auth_pass: password
+pgbouncer_pool_mode: transaction
+pgbouncer_max_client_conn: 100
+pgbouncer_default_pool_size: 20
+postgresql_host: 127.0.0.1
+postgresql_port: 5432

@@ -1,0 +1,92 @@
+- name: Install pgbouncer via apt
+  apt:
+    name: pgbouncer
+    state: present
+    update_cache: true
+
+- name: Ensure pgbouncer group exists
+  group:
+    name: pgbouncer
+    state: present
+
+- name: Ensure pgbouncer user exists
+  user:
+    name: pgbouncer
+    group: pgbouncer
+    home: /var/lib/pgbouncer
+    shell: /usr/sbin/nologin
+    system: true
+    state: present
+
+- name: Ensure /var/run/pgbouncer directory exists
+  file:
+    path: /var/run/pgbouncer
+    state: directory
+    owner: pgbouncer
+    group: pgbouncer
+    mode: '0755'
+
+- name: Ensure log directory exists
+  file:
+    path: /var/log/pgbouncer
+    state: directory
+    owner: pgbouncer
+    group: pgbouncer
+    mode: '0755'
+
+- name: Copy pgbouncer.ini
+  template:
+    src: pgbouncer.ini.j2
+    dest: /etc/pgbouncer/pgbouncer.ini
+    mode: '0644'
+
+- name: Ensure correct ownership of /etc/pgbouncer/userlist.txt
+  file:
+    path: /etc/pgbouncer/userlist.txt
+    state: file
+    owner: pgbouncer
+    group: pgbouncer
+    mode: '0600'
+
+- name: Create systemd service for pgbouncer
+  template:
+    src: pgbouncer.service.j2
+    dest: /etc/systemd/system/pgbouncer.service
+    mode: '0644'
+
+- name: Create empty pgbouncer.log if it does not exist
+  file:
+    path: /var/log/pgbouncer/pgbouncer.log
+    state: touch
+    owner: pgbouncer
+    group: pgbouncer
+    mode: '0640'
+
+- name: Ensure logrotate config for pgbouncer exists
+  copy:
+    dest: /etc/logrotate.d/pgbouncer
+    content: |
+      /var/log/pgbouncer/pgbouncer.log {
+          daily
+          rotate 7
+          compress
+          delaycompress
+          missingok
+          notifempty
+          create 0640 pgbouncer pgbouncer
+          postrotate
+              systemctl reload pgbouncer > /dev/null 2>/dev/null || true
+          endscript
+      }
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Reload systemd to read updated service file
+  command: systemctl daemon-reload
+
+- name: Enable and start pgbouncer service
+  systemd:
+    name: pgbouncer
+    state: started
+    enabled: true

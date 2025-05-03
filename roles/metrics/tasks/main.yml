@@ -1,0 +1,119 @@
+- name: Create node_exporter system user
+  ansible.builtin.user:
+    name: node_exporter
+    system: true
+    shell: /sbin/nologin
+    create_home: false
+
+- name: Download and install node_exporter
+  block:
+    - name: Download node_exporter
+      ansible.builtin.get_url:
+        url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/\
+        node_exporter-{{ node_exporter_version }}.{{ arch }}.tar.gz"
+        dest: /tmp/node_exporter.tar.gz
+        mode: '0644'
+
+    - name: Extract node_exporter
+      ansible.builtin.unarchive:
+        src: /tmp/node_exporter.tar.gz
+        dest: /tmp
+        remote_src: true
+
+    - name: Copy node_exporter binary
+      ansible.builtin.copy:
+        src: "/tmp/node_exporter-{{ node_exporter_version }}.{{ arch }}/node_exporter"
+        dest: "/usr/local/bin/node_exporter"
+        mode: '0755'
+        remote_src: true
+
+- name: Download and install postgres_exporter
+  block:
+    - name: Download postgres_exporter
+      ansible.builtin.get_url:
+        url: "https://github.com/prometheus-community/postgres_exporter/releases/download/\
+        v{{ postgres_exporter_version }}/postgres_exporter-{{ postgres_exporter_version }}.{{ arch }}.tar.gz"
+        dest: /tmp/postgres_exporter.tar.gz
+        mode: '0644'
+
+    - name: Extract postgres_exporter
+      ansible.builtin.unarchive:
+        src: /tmp/postgres_exporter.tar.gz
+        dest: /tmp
+        remote_src: true
+
+    - name: Copy postgres_exporter binary
+      ansible.builtin.copy:
+        src: "/tmp/postgres_exporter-{{ postgres_exporter_version }}.{{ arch }}/postgres_exporter"
+        dest: "/usr/local/bin/postgres_exporter"
+        mode: '0755'
+        remote_src: true
+
+- name: Create systemd unit for node_exporter
+  ansible.builtin.template:
+    src: node_exporter.service.j2
+    dest: /etc/systemd/system/node_exporter.service
+    mode: '0644'
+
+- name: Ensure postgres_exporter config directory exists
+  ansible.builtin.file:
+    path: /etc/postgres_exporter
+    state: directory
+    mode: '0755'
+    owner: postgres
+    group: postgres
+
+- name: Create postgres_exporter config
+  ansible.builtin.template:
+    src: postgres_exporter.yaml.j2
+    dest: /etc/postgres_exporter/postgres_exporter.yaml
+    mode: '0640'
+    owner: postgres
+    group: postgres
+
+- name: Create systemd unit for postgres_exporter
+  ansible.builtin.template:
+    src: postgres_exporter.service.j2
+    dest: /etc/systemd/system/postgres_exporter.service
+    mode: '0644'
+
+- name: Start and enable exporters
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: started
+    enabled: true
+    daemon_reload: true
+  with_items:
+    - node_exporter
+    - postgres_exporter
+
+- name: Allow Prometheus metrics ports in firewall
+  community.general.ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  with_items:
+    - "{{ node_exporter_port }}"      # node_exporter
+    - "{{ postgres_exporter_port }}"  # postgres_exporter
+
+- name: Check node_exporter metrics endpoint
+  ansible.builtin.uri:
+    url: "http://localhost:{{ node_exporter_port }}/metrics"
+    status_code: 200
+    return_content: true
+  register: node_exporter_metrics
+
+- name: Validate node_exporter metrics
+  ansible.builtin.debug:
+    msg: "Node exporter metrics collected successfully: {{ node_exporter_metrics.content | regex_search('node_cpu_seconds_total') is not none }}"
+
+- name: Check postgres_exporter metrics endpoint
+  ansible.builtin.uri:
+    url: "http://localhost:{{ postgres_exporter_port }}/metrics"
+    status_code: 200
+    return_content: true
+  register: postgres_exporter_metrics
+
+- name: Validate postgres_exporter metrics
+  ansible.builtin.debug:
+    msg: "Postgres exporter metrics collected successfully: {{ postgres_exporter_metrics.content | regex_search('pg_database_size') is not none }}"

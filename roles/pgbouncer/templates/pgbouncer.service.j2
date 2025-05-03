@@ -1,0 +1,17 @@
+[Unit]
+Description=PgBouncer
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/pgbouncer /etc/pgbouncer/pgbouncer.ini
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+User=pgbouncer
+Group=pgbouncer
+PIDFile=/var/run/pgbouncer/pgbouncer.pid
+StandardOutput=append:/var/log/pgbouncer/pgbouncer.log
+StandardError=append:/var/log/pgbouncer/pgbouncer.log
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,94 @@
+- name: Install etcd via apt
+  ansible.builtin.apt:
+    name:
+      - etcd
+    update_cache: true
+
+- name: Update apt
+  ansible.builtin.apt:
+    update_cache: true
+
+- name: Clean previous state of etcd
+  ansible.builtin.file:
+    path: /var/lib/etcd
+    state: absent
+  when: clean_etcd is defined and clean_etcd
+
+- name: Create directory for etcd data
+  ansible.builtin.file:
+    path: /var/lib/etcd
+    state: directory
+    owner: etcd
+    group: etcd
+    mode: '0700'
+
+- name: Stop etcd if running
+  ansible.builtin.systemd:
+    name: etcd
+    state: stopped
+  failed_when: false
+
+- name: Generate etcd config
+  ansible.builtin.template:
+    src: etcd.conf.yml.j2
+    dest: /etc/etcd.yml
+    mode: '0644'
+
+- name: Install systemd unit for etcd
+  ansible.builtin.template:
+    src: etcd.service.j2
+    dest: /etc/systemd/system/etcd.service
+    mode: '0644'
+
+- name: Restart etcd
+  ansible.builtin.systemd:
+    name: etcd
+    daemon_reload: true
+    enabled: true
+    state: started
+
+- name: Start etcd on first node
+  when: inventory_hostname == "patroni1"
+  block:
+    - name: Start etcd on first node
+      ansible.builtin.systemd:
+        name: etcd
+        daemon_reload: true
+        enabled: true
+        state: started
+
+- name: Wait for first etcd node will start
+  ansible.builtin.wait_for:
+    host: "{{ ansible_host }}"
+    port: 2379
+    timeout: 30
+
+- name: Wait for the first node to be ready
+  when: inventory_hostname != "patroni1"
+  ansible.builtin.wait_for:
+    host: "{{ hostvars['patroni1']['ansible_host'] }}"
+    port: 2379
+    timeout: 30
+
+- name: Launching other etcd nodes
+  when: inventory_hostname != "patroni1"
+  ansible.builtin.systemd:
+    name: etcd
+    daemon_reload: true
+    enabled: true
+    state: started
+
+- name: Wait for cluster formation
+  ansible.builtin.shell: |
+    timeout 30 bash -c 'until etcdctl --endpoints=http://{{ ansible_host }}:2379 cluster-health; do sleep 5; done'
+  register: cluster_health
+  until: cluster_health.rc == 0
+  retries: 10
+  delay: 5
+  # noqa no-changed-when
+
+- name: Check cluster state
+  ansible.builtin.shell: |
+    etcdctl --endpoints=http://{{ ansible_host }}:2379 member list
+  register: etcd_members
+  changed_when: false
