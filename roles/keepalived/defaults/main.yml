@@ -1,4 +1,2 @@
-vip_interface: enp0s1
-virtual_ip: 192.168.64.100
+keepalived_vip_interface: enp0s1
 keepalived_auth_pass: mypassword
-haproxy_stats_port: 7000

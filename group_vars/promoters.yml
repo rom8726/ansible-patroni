@@ -50,7 +50,7 @@ postgresql_custom_parameters:
   wal_keep_segments: 32
 
 # Additional pg_hba.conf rules (optional)
-#postgresql_additional_pg_hba:
+# postgresql_additional_pg_hba:
 
 # PgBouncer params
 pgbouncer_listen_port: 6432
@@ -60,7 +60,6 @@ haproxy_config: "/etc/haproxy/haproxy.cfg"
 
 # Cluster variables
 cluster_vip_1: "192.168.64.100"
-vip_interface: "{{ ansible_default_ipv4.interface }}"  # interface name (ex. "ens32")
 
 # Prometheus settings
 prometheus_retention: "30d"
