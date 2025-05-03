@@ -19,7 +19,8 @@ vrrp_script haproxy_check {
 
 vrrp_instance pgcluster_1 {
     interface {{ vip_interface }}
-    state {% if hostvars[inventory_hostname].node_id == "1" %}MASTER{% else %}BACKUP{% endif %}
+    state {% if inventory_hostname == "patroni1" %}MASTER{% else %}BACKUP{% endif %}
+
     priority {{ ansible_default_ipv4.address.split('.').3 }}
     virtual_router_id 10
     authentication {
