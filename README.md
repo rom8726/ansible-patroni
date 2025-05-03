@@ -1,10 +1,18 @@
 # ansible-patroni
-Ansible playbook for deploy PostgreSQL Patroni cluster
+Ansible playbook for deploying PostgreSQL Patroni cluster
 
 ⚠️ **WARNING: This configuration is for testing/development purposes only. DO NOT use in production without proper security hardening!**
 
 ## Overview
-This Ansible playbook automates the deployment of a PostgreSQL high-availability cluster using Patroni and etcd. The setup includes a 3-node cluster configuration with automatic failover capabilities and monitoring.
+This Ansible playbook automates the deployment of a PostgreSQL high-availability cluster using Patroni and etcd. The setup includes the following components for connection management and high availability:
+- `Keepalived` creates a Virtual IP (VIP) for failover.
+- `HAProxy` acts as a proxy layer for distributing requests.
+- `PgBouncer` operates as a connection pooler.
+  
+The connection path:
+```
+Keepalived VIP -> HAProxy -> PgBouncer -> PostgreSQL
+```
 
 ## Prerequisites
 - Ubuntu/Debian-based system
@@ -15,31 +23,28 @@ This Ansible playbook automates the deployment of a PostgreSQL high-availability
 - PostgreSQL 16
 - Patroni
 - etcd (for distributed configuration)
+- PgBouncer (for connection pooling)
+- Keepalived (for VIP)
+- HAProxy (for load balancing)
 - Python 3 and pip
 - Node Exporter (system metrics)
 - Postgres Exporter (PostgreSQL metrics)
 
 ## Quick Start
 1. Clone this repository:
-2. Create config files by command `make init`
-3. Update inventory.ini with your servers:
+2. Create config files with the command `make init`
+3. Update `inventory.ini` with your servers:
 ```ini
 [promoters]
 patroni1 ansible_host=192.168.64.2 node_id=1
 patroni2 ansible_host=192.168.64.3 node_id=2
 patroni3 ansible_host=192.168.64.4 node_id=3 
 ```
-4. Update ansible.cfg with your user (root by default)
+4. Update `ansible.cfg` with your user (root by default).
 5. Run the playbooks:
 ```shell
 # Deploy Patroni cluster
 make up
-
-# Deploy HAProxy
-make haproxy
-
-# Deploy monitoring
-make pg-observe
 ```
 
 ## Default Configuration
@@ -52,8 +57,19 @@ make pg-observe
 - HAProxy PostgreSQL (master): 5000
 - HAProxy PostgreSQL (replica): 5001
 - HAProxy Statistics: 7000
+- PgBouncer: 6432
 - Node Exporter: 9100
 - Postgres Exporter: 9187
+
+### Keepalived Configuration
+- VIP: Used for automatic failover between HAProxy instances.
+- Configured to determine the `MASTER` node based on its `node_id` in the cluster.
+
+### PgBouncer Configuration
+- Connection pooling for PostgreSQL to reduce the overhead of establishing frequent connections.
+- Default port: `6432`.
+- Authentication method: Userlist file.
+- Configurations stored in `/etc/pgbouncer/pgbouncer.ini`.
 
 ### PostgreSQL Settings
 - Version: 16
@@ -90,27 +106,6 @@ make pg-observe
 - User: postgres
 - Config Path: /etc/postgres_exporter/postgres_exporter.yaml
 
-## File Structure
-``` 
-.
-├── ansible.cfg # Ansible configuration
-├── inventory.ini # Server inventory
-├── playbook.yml # Main playbook
-├── haproxy.yml # HAProxy playbook
-├── pg_observe.yml # Monitoring playbook
-└── group_vars/
-│ └── promoters.yml # Variables and settings
-└── templates/
-│ ├── etcd.conf.yml.j2 # etcd configuration
-│ ├── patroni.yml.j2 # Patroni configuration
-│ ├── haproxy.cfg.j2 # HAProxy configuration
-│ ├── postgres_exporter.yaml.j2 # Postgres exporter config
-│ ├── etcd.service.j2 # etcd systemd service
-│ ├── patroni.service.j2 # Patroni systemd service
-│ ├── node_exporter.service.j2 # Node exporter systemd service
-│ └── postgres_exporter.service.j2 # Postgres exporter systemd service
-```
-
 ## Important Security Notes
 This deployment includes several configurations that are NOT suitable for production:
 - Basic default passwords
@@ -123,9 +118,11 @@ This deployment includes several configurations that are NOT suitable for produc
 ## Logging
 - Patroni logs: /var/log/patroni/patroni.log
 - etcd logs: /var/log/etcd.log
+- PgBouncer logs: /var/log/pgbouncer/pgbouncer.log
 - Log rotation is configured for Patroni logs (7 days retention)
 - Node Exporter logs: journalctl -u node_exporter
 - Postgres Exporter logs: journalctl -u postgres_exporter
+- Keepalived logs: journalctl -u keepalived
 
 ## Service Management
 ``` bash
@@ -138,6 +135,21 @@ systemctl stop patroni
 systemctl status etcd
 systemctl start etcd
 systemctl stop etcd
+
+# HAProxy service
+systemctl status haproxy
+systemctl start haproxy
+systemctl stop haproxy
+
+# PgBouncer service
+systemctl status pgbouncer
+systemctl start pgbouncer
+systemctl stop pgbouncer
+
+# Keepalived service
+systemctl status keepalived
+systemctl start keepalived
+systemctl stop keepalived
 
 # Monitoring services
 systemctl status node_exporter
