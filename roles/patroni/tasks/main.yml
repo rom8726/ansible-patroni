@@ -1,4 +1,4 @@
-- name: Install dependencies
+- name: Install dependencies via apt
   ansible.builtin.apt:
     name:
       - python3-pip
@@ -23,7 +23,7 @@
   ansible.builtin.apt:
     update_cache: true
 
-- name: Install PostgreSQL {{ pg_version }}
+- name: Install PostgreSQL {{ pg_version }} via apt
   ansible.builtin.apt:
     name: postgresql-{{ pg_version }}
     state: present

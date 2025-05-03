@@ -1,4 +1,4 @@
-- name: Install HAProxy
+- name: Install HAProxy via apt
   ansible.builtin.apt:
     name: haproxy
     state: present

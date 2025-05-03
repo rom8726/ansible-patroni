@@ -3,17 +3,9 @@
   hosts: promoters
   become: true
   roles:
-#    - etcd
-#    - patroni
+    - etcd
+    - patroni
     - metrics
     - pgbouncer
     - haproxy
-    - keepalived
-
-- name: Deploy Keepalived VIP
-  hosts: keepalived_vip
-  become: true
-  vars:
-    add_balancer: true
-  roles:
     - keepalived

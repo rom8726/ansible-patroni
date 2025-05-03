@@ -18,15 +18,14 @@ prometheus-grafana: init
 .PHONY: haproxy.check.master
 haproxy.check.master: init
 	@PGPASSWORD=`grep postgresql_superuser_password group_vars/promoters.yml | awk '{print $$2}'` && \
-	ANSIBLE_HOST=`grep haproxy1 inventory.ini | awk '{print $$2}' | sed 's/ansible_host=//'` && \
-	PGPASSWORD=$$PGPASSWORD psql -h $$ANSIBLE_HOST -p 5000 -U postgres -c "SELECT pg_is_in_recovery()" | grep -q 'f' && \
+	ANSIBLE_HOST='192.168.64.100' && \
+	PGPASSWORD=$$PGPASSWORD psql -h 192.168.64.100 -p 5000 -U postgres -c "SELECT pg_is_in_recovery()" | grep -q 'f' && \
 	echo "HAProxy master is OK" || echo "HAProxy master check failed"
 
 .PHONY: haproxy.check.slave
 haproxy.check.slave: init
 	@PGPASSWORD=`grep postgresql_superuser_password group_vars/promoters.yml | awk '{print $$2}'` && \
-	ANSIBLE_HOST=`grep haproxy1 inventory.ini | awk '{print $$2}' | sed 's/ansible_host=//'` && \
-	PGPASSWORD=$$PGPASSWORD psql -h $$ANSIBLE_HOST -p 5001 -U postgres -c "SELECT pg_is_in_recovery()" | grep -q 't' && \
+	PGPASSWORD=$$PGPASSWORD psql -h 192.168.64.100 -p 5001 -U postgres -c "SELECT pg_is_in_recovery()" | grep -q 't' && \
 	echo "HAProxy slave is OK" || echo "HAProxy slave check failed"
 
 .PHONY: haproxy.check

@@ -1,39 +1,10 @@
-#---
-#- name: Install keepalived
-#  apt:
-#    name: keepalived
-#    state: present
-#    update_cache: true
-#
-#- name: Configure keepalived
-#  template:
-#    src: keepalived.conf.j2
-#    dest: /etc/keepalived/keepalived.conf
-#    mode: '0644'
-#    owner: root
-#    group: root
-#  notify: restart keepalived
-#
-#- name: Make script executable
-#  file:
-#    path: /usr/local/bin/check_haproxy.sh
-#    mode: '0755'
-#    state: file
-#
-#- name: Ensure keepalived is enabled and started
-#  systemd:
-#    name: keepalived
-#    state: started
-#    enabled: true
-
 ---
-
-- name: Install jq
+- name: Install jq via apt
   ansible.builtin.apt:
     name: jq
     state: present
 
-- name: Install keepalived
+- name: Install keepalived via apt
   ansible.builtin.apt:
     name: keepalived
     state: present
@@ -64,12 +35,17 @@
   ansible.builtin.copy:
     content: |
       #!/bin/bash
-      /bin/kill -0 `cat /run/haproxy/haproxy.pid`
+      /bin/kill -0 `cat /var/run/haproxy.pid`
     dest: /opt/keepalived/scripts/haproxy_check.sh
     owner: root
     group: root
     mode: "0700"
   notify: "Restart keepalived"
+
+- name: Add execution rights to haproxy_check.sh
+  ansible.builtin.file:
+    path: /opt/keepalived/scripts/haproxy_check.sh
+    mode: 'u+x'
 
 - name: Generate keepalived conf file
   when: add_balancer is not defined or not add_balancer|bool
@@ -91,41 +67,9 @@
     owner: root
     group: root
 
-- name: Block for tasks with balancer
-  when: add_balancer is defined and add_balancer|bool
-  block:  # for add_balancer.yml
-    - name: "Fetch keepalived.conf conf file from {{ groups.promoters[0] }}"
-      run_once: true
-      ansible.builtin.fetch:
-        src: /etc/keepalived/keepalived.conf
-        dest: files/keepalived.conf
-        validate_checksum: true
-        flat: true
-      delegate_to: "{{ groups.promoters[0] }}"
-
-    - name: Copy keepalived.conf conf file to replica
-      ansible.builtin.copy:
-        src: files/keepalived.conf
-        dest: /etc/keepalived/keepalived.conf
-        mode: "0644"
-      notify: "Restart keepalived"
-
-    - name: Remove keepalived.conf file from localhost
-      become: false
-      run_once: true
-      ansible.builtin.file:
-        path: files/keepalived.conf
-        state: absent
-      delegate_to: localhost
-
-    - name: Prepare keepalived.conf conf file (replace "interface")
-      ansible.builtin.lineinfile:
-        path: /etc/keepalived/keepalived.conf
-        regexp: "{{ item.regexp }}"
-        line: "{{ item.line }}"
-        backrefs: true
-      loop:
-        - { regexp: '^.*interface', line: '   interface {{ vip_interface }}' }
-      loop_control:
-        label: "{{ item.line }}"
-      notify: "Restart keepalived"
+- name: Enable and start keepalived
+  ansible.builtin.systemd:
+    name: keepalived
+    state: restarted
+    enabled: true
+    daemon_reload: true
